@@ -60,7 +60,7 @@ var _ = Describe("Mutating Webhooks", func() {
 				Labels: e2eLabels("webhook-test"),
 			},
 			Spec: v1alpha1.ArgoTranslatorSpec{
-				Tenant: defaultTestTenant,
+				TenantName: defaultTestTenant,
 				ArgoCD: v1alpha1.ArgoTranslatorSpec{
 					Destination: defaultDestination,
 					Namespace:   testNamespace,
@@ -134,6 +134,58 @@ var _ = Describe("Mutating Webhooks", func() {
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 				// verify that the app is mutated
+				Eventually(func() bool {
+					updatedApp := &argocdv1alpha1.Application{}
+					err := k8sClient.Get(ctx, client.ObjectKey{Name: defaultAppName, Namespace: testNamespace}
+						,updatedApp)
+					if err != nil {
+						return false
+					}
+					// Project should be mutated to tenant name
+					if updatedApp.Spex.Project != defaultTestTenant {
+						return false
+					}
+					// Check for additional labels/annotations added by webhook
+					return true
+				}, defaultTdefaultTimeout, defadefaultPollInterval).Should(BeTBeTrue())
+			})
+		})
+	})
+	
+	Context("ApplicationSet Mutating Webhook", func() {
+		When("Creating an ApplicationSet with webhook enabled", func() {
+			It("Should mutate the ApplicatonSet correctly", func() {
+				// Update ArgoAddon to enable webhook for ApplicationSets
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, argoargoAddon)).To(Succeed())
+				argoAddon.Spec.ApplicationSetWebhook = true
+				Expect(k8sClient.Update(ctx, argoAddon)).To(Succeed())
+
+				// create an ApplicationSet
+				appSet := &argocdv1alpha1.ApplicationSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: defaultAppSetName,
+						NameSpace: testNameSpace,
+						Labels: map[string]string{
+							"capsule.clastix.io/tenant": defaultTestTenant,
+							e2eLabel: "true",
+							suiteLabel: "webhook-test",
+						},
+					},
+					Spec: argocdv1alpha1.ApplicationSetSpec{
+						Generators: []argocdv1alpha1.ApplicationSetGenerator{
+							{
+								List: &argocdv1alpha1.ListGenerator{
+									Elements: []map[string]interface{}{
+										"cluster": "in-cluster",
+										"url": "https://kubernetes.default.svc",
+										"revision": "HEAD",
+									},
+								},
+							},
+						},
+					},
+					Template:
+				}
 			})
 		})
 	})
